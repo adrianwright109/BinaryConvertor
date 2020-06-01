@@ -1,0 +1,85 @@
+﻿@page "/"
+@using System.ComponentModel.DataAnnotations
+<h3>Binary Convertor</h3>
+
+<EditForm EditContext="@_editContext" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <InputText id="input" @bind-Value="_model.Input" @attributes="InputAttributes" />
+
+    <button type="submit">Convert</button>
+
+    @if (_keyPressed != null 
+         && _decimalRepresentation > 0
+         && _binaryRepresentation != null)
+    {
+        <button type="reset" @onclick="ResetForm">Reset</button>
+
+        <table>
+            <tbody>
+                <tr>
+                    <th>Key Pressed:</th>
+                    <td>@_keyPressed</td>
+                </tr>
+                <tr>
+                    <th>Decimal Representation:</th>
+                    <td>@_decimalRepresentation</td>
+                </tr>
+                <tr>
+                    <th>Binary Representation:</th>
+                    <td>@_binaryRepresentation</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+</EditForm>
+
+@code {
+    private string _keyPressed;
+    private byte _decimalRepresentation;
+    private string _binaryRepresentation;
+
+    private readonly BinaryConvertorModel _model = new BinaryConvertorModel();
+    private EditContext _editContext;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_model);
+    }
+
+    private void HandleValidSubmit()
+    {
+        var model = (BinaryConvertorModel)_editContext.Model;
+
+        _keyPressed = _model.Input;
+        _decimalRepresentation = (byte)_keyPressed[0];
+        _binaryRepresentation = Convert.ToString(_decimalRepresentation, 2).PadLeft(8, '0');
+    }
+
+    private void ResetForm()
+    {
+        _model.Input = null;
+
+        _keyPressed = null;
+        _decimalRepresentation = 0;
+        _binaryRepresentation = null;
+    }
+
+    class BinaryConvertorModel
+    {
+        [Required]
+        [StringLength(1, ErrorMessage = "Please enter a single character [A-Z] or [a-z]")]
+        [RegularExpression("[A-Z|a-z]", ErrorMessage = "Please enter a single character [A-Z] or [a-z]")]
+        public string Input { get; set; }
+    }
+
+    public Dictionary<string, object> InputAttributes { get; set; } =
+        new Dictionary<string, object>()
+        {
+            { "maxlength", "1" },
+            { "placeholder", "Input single character A-Z" },
+            { "required", "required" },
+            { "size", "20" }
+            };
+}
