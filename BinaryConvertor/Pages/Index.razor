@@ -1,6 +1,32 @@
 ﻿@page "/"
 @using System.ComponentModel.DataAnnotations
+
 <h3>Binary Convertor</h3>
+<style>
+    table.binary th, table.binary td {
+        text-align: center;
+    }
+
+    span.key-pressed {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    span.decimal {
+        color: #17a2b8;
+        font-weight: bold;
+    }
+
+    span.binary {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    span.multiple {
+        color: #007bff;
+        font-weight: bold;
+    }
+</style>
 
 <EditForm EditContext="@_editContext" OnValidSubmit="HandleValidSubmit">
     <DataAnnotationsValidator />
@@ -10,35 +36,142 @@
 
     <button type="submit">Convert</button>
 
-    @if (_keyPressed != null 
-         && _decimalRepresentation > 0
-         && _binaryRepresentation != null)
+    @if (_keyPressed != null
+&& _decimalRepresentation10Base > 0
+&& _binaryRepresentation != null)
     {
         <button type="reset" @onclick="ResetForm">Reset</button>
 
         <table>
             <tbody>
                 <tr>
-                    <th>Key Pressed:</th>
-                    <td>@_keyPressed</td>
+                    <th scope="row">Key Pressed (1 byte):</th>
+                    <td><span class="key-pressed">@_keyPressed</span></td>
                 </tr>
                 <tr>
-                    <th>Decimal Representation:</th>
-                    <td>@_decimalRepresentation</td>
+                    <th scope="row">Decimal Representation (Base 10):</th>
+                    <td><span class="decimal">@_decimalRepresentation10Base</span></td>
                 </tr>
                 <tr>
-                    <th>Binary Representation:</th>
-                    <td>@_binaryRepresentation</td>
+                    <th scope="row">Binary Representation (Base 2):</th>
+                    <td><span class="binary">@_binaryRepresentation</span></td>
                 </tr>
             </tbody>
         </table>
+
+        <p>&nbsp;</p>
+        <p>A single byte contains 8 digits known as bits.</p>
+        <p>Each bit is either a 1 or 0 known as Base 2, as it can contain 2 different digits 1 and 0.</p>
+        <p>Each bit is either a 1 or 0 known as Base 10, as it can contain 10 different digits (0, 1, 2, 3, 4, 5, 6, 7, 8 and 9).</p>
+
+        <table class="binary table table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    @for (var index = 0; index < _binaryMultiples.Length; index++)
+                    {
+                        var multiple = _binaryMultiples[index];
+
+                        if (index < _binaryMultiples.Length - 1)
+                        {
+                            <th scope="col"><span class="multiple">@multiple</span></th>
+                        }
+                        else
+                        {
+                            <th scope="col">@((MarkupString)_newBlankSpace)</th>
+                        }
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    @foreach (var digit in _binaryValues)
+                    {
+                        <td><span class="binary">@digit</span></td>
+                    }
+                </tr>
+            </tbody>
+        </table>
+
+        <p>
+            <span><strong>Calculation from Binary to Decimal: </strong></span>
+            @for (var index = 0; index < _binaryValues.Length; index++)
+            {
+                var digit = _binaryValues[index];
+
+                if (digit == 1)
+                {
+                    var multiple = _binaryMultiples[index];
+
+                    if (index > 0)
+                    {
+                        <span>+</span>
+                    }
+
+                    <span>@((MarkupString)(multiple != null ? $"(<span class=\"multiple\">{multiple}</span> x <span class=\"binary\">{digit}</span>)" : $"<span class=\"binary\">{digit}</span>"))</span>
+                }
+                else
+                {
+                    if (index > 0)
+                    {
+                        <span>+</span>
+                    }
+
+                    <span class="binary">@digit</span>
+                }
+            }
+
+            <span> = <span class="decimal">@_decimalRepresentation10Base</span></span>
+        </p>
+
+        <p>
+            <span><strong>Calculation from Binary to Decimal (simplified): </strong></span>
+            @for (var index = 0; index < _binaryValues.Length; index++)
+            {
+                var digit = _binaryValues[index];
+
+                if (digit == 0)
+                {
+                    continue; // ignore zeros
+                }
+
+                var multiple = _binaryMultiples[index];
+
+                <span>@((MarkupString)(multiple != null ? $"<span class=\"multiple\">{multiple}</span>" : $"<span class=\"binary\">{digit}</span>"))</span>
+
+                if (index < _binaryValues.Length - 1)
+                {
+                    var showAdditionSign = false;
+
+                    @for (var i = index + 1; i < _binaryValues.Length; i++)
+                    {
+                        if (_binaryValues[i] == 0)
+                        {
+                            continue; // ignore zeros
+                        }
+
+                        showAdditionSign = true;
+                        break;
+                    }
+
+                    if (showAdditionSign)
+                    {
+                        <span>+</span>
+                    }
+                }
+            }
+
+            <span> = <span class="decimal">@_decimalRepresentation10Base</span></span>
+        </p>
     }
 </EditForm>
 
 @code {
+    private const string _newBlankSpace = "&nbsp;";
     private string _keyPressed;
-    private byte _decimalRepresentation;
+    private byte _decimalRepresentation10Base;
     private string _binaryRepresentation;
+    private readonly string[] _binaryMultiples = new[] { "128", "64", "32", "16", "8", "4", "2", null };
+    private int[] _binaryValues;
 
     private readonly BinaryConvertorModel _model = new BinaryConvertorModel();
     private EditContext _editContext;
@@ -52,9 +185,16 @@
     {
         var model = (BinaryConvertorModel)_editContext.Model;
 
+        // store the input from the form to the _keyPressed variable
         _keyPressed = _model.Input;
-        _decimalRepresentation = (byte)_keyPressed[0];
-        _binaryRepresentation = Convert.ToString(_decimalRepresentation, 2).PadLeft(8, '0');
+
+        // convert _keyPressed character to a byte
+        _decimalRepresentation10Base = (byte)_keyPressed[0];
+
+        // convert byte to string representation with 8 digits known as bits (1 byte contains 8 bits)
+        _binaryRepresentation = Convert.ToString(_decimalRepresentation10Base, 2).PadLeft(8, '0');
+
+        _binaryValues = _binaryRepresentation.ToCharArray().Select(x => int.Parse(x.ToString())).ToArray();
     }
 
     private void ResetForm()
@@ -62,7 +202,7 @@
         _model.Input = null;
 
         _keyPressed = null;
-        _decimalRepresentation = 0;
+        _decimalRepresentation10Base = 0;
         _binaryRepresentation = null;
     }
 
@@ -77,9 +217,10 @@
     public Dictionary<string, object> InputAttributes { get; set; } =
         new Dictionary<string, object>()
         {
-            { "maxlength", "1" },
-            { "placeholder", "Input single character A-Z" },
-            { "required", "required" },
-            { "size", "20" }
-            };
+            {"maxlength", "1"},
+            {"placeholder", "Input single character A-Z"},
+            {"required", "required"},
+            {"size", "20"}
+                    };
+
 }
